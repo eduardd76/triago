@@ -1,21 +1,22 @@
-"""Jev-style fixed-answer scorer on MLX (Apple Silicon).
+"""Jev-style fixed-answer scorer. Runs on MLX (Apple Silicon) or PyTorch (CUDA/CPU): see backends.py.
 
 Equivalent of SGLang's /v1/score: run the prompt once, read the next-token
 logits for the label tokens only, softmax across those labels. No decoding.
 """
 from __future__ import annotations
 
+import json
 import os
 import string
 import threading
 import time
 from dataclasses import dataclass
 
-import mlx.core as mx
-from mlx_lm import generate, load
-from mlx_lm.models.cache import make_prompt_cache, trim_prompt_cache
+import numpy as np
 
-DEFAULT_MODEL = os.environ.get("TRIAGO_MODEL", "mlx-community/Qwen3-4B-Instruct-2507-4bit")
+from . import backends
+
+DEFAULT_ADAPTER = os.environ.get("TRIAGO_ADAPTER") or None  # LoRA dir from `python -m triago.finetune`
 LABELS = string.ascii_uppercase  # A, B, C, ... -> single tokens in the answer position
 
 SYSTEM = (
@@ -39,16 +40,22 @@ class Decision:
 
 
 class Scorer:
-    def __init__(self, model_path: str = DEFAULT_MODEL):
-        self.model_path = model_path
-        self.model, self.tokenizer = load(model_path)
-        self._lock = threading.Lock()  # MLX model is not safe for concurrent forward passes
+    def __init__(self, model_path: str | None = None, adapter_path: str | None = DEFAULT_ADAPTER,
+                 backend: str | None = None):
+        self.backend = backends.load(backend or backends.pick(), model_path, adapter_path)
+        self.model, self.tokenizer = self.backend.model, self.backend.tokenizer
+        self.model_path, self.adapter_path = self.backend.model_path, adapter_path
+        # a fine-tuned adapter ships its own calibration (temperatures, shots): see Policy.for_scorer
+        cal = os.path.join(adapter_path, "triago.json") if adapter_path else None
+        self.calibration = json.load(open(cal))["policy"] if cal and os.path.exists(cal) else {}
+        self._lock = threading.Lock()  # one forward pass at a time (shared prefix caches)
         self._label_ids_cache: dict[int, list[int]] = {}
         self._prefix: dict[tuple, tuple[list[int], list]] = {}  # (question, choices) -> (ids, kv cache)
 
     # ---- prompt construction -------------------------------------------------
-    def _render(self, ticket: str, question: str, choices: dict[str, str],
-                examples=None) -> tuple[str, list[str]]:
+    def messages(self, ticket: str, question: str, choices: dict[str, str],
+                 examples=None) -> tuple[list[dict], list[str]]:
+        """The chat the model sees. Fine-tuning trains on exactly this (see triago/finetune.py)."""
         labels = list(LABELS[: len(choices)])
         lines = "\n".join(f"{lab} = {desc}" for lab, desc in zip(labels, choices.values()))
         letter = dict(zip(choices, labels))
@@ -62,8 +69,13 @@ class Scorer:
             f"Question:\n{question}\n\nAllowed labels:\n{lines}\n\n{shots}"
             f"Ticket:\n{ticket}\n\nReturn only the label."
         )
+        return [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}], labels
+
+    def _render(self, ticket: str, question: str, choices: dict[str, str],
+                examples=None) -> tuple[str, list[str]]:
+        msgs, labels = self.messages(ticket, question, choices, examples)
         prompt = self.tokenizer.apply_chat_template(
-            [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}],
+            msgs,
             tokenize=False,
             add_generation_prompt=True,
             enable_thinking=False,  # hybrid Qwen3: emit empty <think></think> so the answer slot comes next
@@ -86,10 +98,7 @@ class Scorer:
                 b = self._encode(self._render(t, question, choices, ex)[0])
                 n = min(n, next((i for i, (x, y) in enumerate(zip(a, b)) if x != y), min(len(a), len(b))))
             ids = a[: max(0, n - 1)]  # keep one token back for safety
-            cache = make_prompt_cache(self.model)
-            self.model(mx.array(ids)[None], cache=cache)
-            mx.eval([c.state for c in cache])
-            self._prefix[key] = (ids, cache)
+            self._prefix[key] = (ids, self.backend.prefill(ids))
         return self._prefix[key]
 
     def _label_token_ids(self, prompt: str, labels: list[str]) -> list[int]:
@@ -123,16 +132,12 @@ class Scorer:
         with self._lock:
             pre_ids, cache = self._prefix_cache(question, choices)
             use_cache = ids[: len(pre_ids)] == pre_ids
-            if use_cache:
-                suffix = ids[len(pre_ids):]
-                logits = self.model(mx.array(suffix)[None], cache=cache)[0, -1]
-            else:
-                logits = self.model(mx.array(ids)[None])[0, -1]  # vocab-sized vector at "answer" slot
-            sel = logits[mx.array(label_ids)].astype(mx.float32)
-            probs = mx.softmax(sel / temperature)       # restricted softmax over the labels only
-            mx.eval(probs, sel)
-            if use_cache:
-                trim_prompt_cache(cache, len(suffix))  # rewind to the shared prefix for the next ticket
+            # vocab-sized vector at the "answer" slot; the backend rewinds the cache to the shared prefix
+            logits = (self.backend.next_logits(ids[len(pre_ids):], cache) if use_cache
+                      else self.backend.next_logits(ids))
+        sel = logits[label_ids].astype(np.float64)
+        e = np.exp((sel - sel.max()) / temperature)  # restricted softmax over the labels only
+        probs = e / e.sum()
         p = {key: float(v) for key, v in zip(choices, probs.tolist(), strict=True)}
         raw = {key: float(v) for key, v in zip(choices, sel.tolist(), strict=True)}
         best = max(p, key=p.get)
@@ -147,7 +152,7 @@ class Scorer:
         prompt = prompt.replace("Return only the label.<|im_end|>",
                                 "Answer with the label and a short reason.<|im_end|>")
         with self._lock:
-            text = generate(self.model, self.tokenizer, prompt=prompt, max_tokens=max_tokens)
+            text = self.backend.generate(prompt, max_tokens)
         head = text.strip()[:100]
         parsed = None
         for lab, key in zip(labels, choices):

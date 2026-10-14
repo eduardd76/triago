@@ -93,7 +93,8 @@ def main() -> None:
             sys.exit("feedback export is GLPI-only; for other systems write data/feedback.jsonl yourself "
                      '(one {"text": ..., "group": ...} per line)')
         return export_feedback(conn)
-    scorer, policy, store = Scorer(), Policy(), ExampleStore.from_data()
+    scorer, store = Scorer(), ExampleStore.from_data()
+    policy = Policy.for_scorer(scorer)
     print(f"example store: {len(store.rows)} labeled tickets (incl. feedback)", flush=True)
     if cmd == "once":
         print(f"processed {process_queue(conn, scorer, policy, store)} tickets")

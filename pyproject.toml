@@ -6,12 +6,16 @@ readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"
 dependencies = [
-    "mlx>=0.32,<0.33",
-    "mlx-lm>=0.32,<0.33",
+    "numpy>=1.26",
     "requests>=2.31",
+    # Apple Silicon backend (default on Macs)
+    "mlx>=0.32,<0.33; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "mlx-lm>=0.32,<0.33; sys_platform == 'darwin' and platform_machine == 'arm64'",
 ]
 
 [project.optional-dependencies]
+# PyTorch backend: Linux/Windows (CUDA or CPU), or a Mac with TRIAGO_BACKEND=torch
+torch = ["torch>=2.3", "transformers>=4.56", "peft>=0.13"]
 dev = ["pytest>=8"]
 
 [tool.setuptools]

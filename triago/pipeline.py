@@ -86,6 +86,11 @@ class Policy:
     security_trip: float = 0.05  # calibrated security prob above this -> SOC (recall over false alarms)
     shots: int = 3               # retrieved past tickets as examples: +7 pts on real Zenodo and realistic holdout
 
+    @classmethod
+    def for_scorer(cls, scorer) -> "Policy":
+        """Defaults above for the base model; a fine-tuned adapter overrides them with its own fit."""
+        return cls(**getattr(scorer, "calibration", {}))
+
 
 def recalibrate(d: Decision, temperature: float) -> Decision:
     """Re-apply the restricted softmax to the raw label logits at a given temperature."""

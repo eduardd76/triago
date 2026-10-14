@@ -23,7 +23,7 @@ All numbers are on sets that were never used for tuning.
 
 | test set | what it is | group accuracy | notes |
 |---|---|---|---|
-| Zenodo IT tickets, 657 test tickets | real MSP tickets, their own 7 queues | **80.8%**, macro-F1 **0.79** | authors' trained model: 79% / 0.72 |
+| Zenodo IT tickets, 657 test tickets | real MSP tickets, their own 7 queues | **80.8%**, macro-F1 **0.79**; **88.0%** with a local LoRA fine-tune | authors' trained model: 79% / 0.72 |
 | `data/real_like`, 300 tickets | realistic, agent-written, blind-reviewed | **85.0%** | 3 sources: end users / IT & alerts / 8 languages |
 | `data/fresh`, 150 tickets | security stress: 40 incidents + 50 lookalikes | **83.3%** | security gate: 32/40 incidents caught, 5 false alarms |
 
@@ -35,17 +35,29 @@ Latency: ~0.8 s per ticket for all four decisions; the question+labels prefix is
 
 ## Install
 
-Requires an Apple Silicon Mac (MLX), Python ≥ 3.11 and Docker for the GLPI demo.
+Python ≥ 3.11. Docker only for the GLPI demo.
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-python scripts/fetch_zenodo.py           # optional: real-world benchmark data (CC BY 4.0)
-pytest                                   # unit tests, no model download needed
+python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"            # Apple Silicon Mac: MLX backend
+pip install -e ".[torch,dev]"      # Linux / Windows / Intel Mac: PyTorch backend (CUDA if present, else CPU)
+python scripts/fetch_zenodo.py     # optional: real-world benchmark data (CC BY 4.0)
+pytest                             # unit tests, no model download needed
 ```
 
-The model (`mlx-community/Qwen3-4B-Instruct-2507-4bit`, ~2.5 GB, Apache-2.0) downloads on first run;
-override with `TRIAGO_MODEL=...`.
+| platform | backend | default model (downloads on first run) |
+|---|---|---|
+| Apple Silicon Mac | MLX | `mlx-community/Qwen3-4B-Instruct-2507-4bit` (~2.5 GB) |
+| Linux / Windows + NVIDIA GPU | PyTorch, CUDA, bf16 | `Qwen/Qwen3-4B-Instruct-2507` (~8 GB, needs ~10 GB VRAM) |
+| any CPU | PyTorch, CPU | same; works, but expect seconds per ticket |
+
+Backend check on an M5 (40 Zenodo tickets, zero-shot): MLX 4-bit and PyTorch fp16 (MPS) pick the same
+queue on 87.5% of tickets (different weight precision); 114 vs 271 ms per decision.
+
+Override with `TRIAGO_BACKEND=mlx|torch` and `TRIAGO_MODEL=...` (any chat model whose answer letters
+A, B, C... are single tokens; the scorer checks this and refuses otherwise). The calibration defaults
+in `triago/pipeline.py` were fitted for the MLX 4-bit model; on another backend or model re-run
+`python -m triago.bench` and use its temperatures.
 
 ## Run
 
@@ -134,6 +146,35 @@ python -m triago.dispatcher run --connector mycompany.zammad:Zammad
 4. Keep feeding corrections back: one `{"text": ..., "group": ...}` per line in `data/feedback.jsonl`
    (GLPI users get this from `python -m triago.dispatcher feedback`).
 
+## Fine-tune on your own tickets (optional, local)
+
+Retrieved examples need no training and come first. Once you have a few hundred to a few thousand
+resolved tickets with trusted groups, a LoRA adapter trained on your Mac is the next step:
+
+```bash
+python -m triago.finetune data/my_tickets.jsonl    # one {"t": "<subject> | <body>", "g": "<group key>"} per line
+export TRIAGO_ADAPTER=adapters/my_tickets          # only if it prints ACCEPTED; rollback: unset it
+```
+
+It scrubs e-mails, URLs, IPs, phone numbers, MACs and secrets (not names), splits train/valid/test
+by hash, trains on the exact prompt the scorer reads with the loss on the answer letter only,
+re-fits calibration on valid, and accepts the adapter only if it beats the base model on valid and,
+for your own tickets, does not miss more security incidents. Nothing leaves the machine; the
+adapter has seen your tickets, so keep it as private as they are (`adapters/` is git-ignored).
+
+Measured on Zenodo (`python -m triago.finetune --zenodo`: 868 train tickets, ~40 min on an M5,
+657 test tickets; "unseen" = the 534 test tickets whose text never appears in training):
+
+| setup | test | unseen test |
+|---|---|---|
+| base, zero-shot | 73.4% | 69.9% |
+| base + 3 examples (default without adapter) | 79.9% | 77.3% |
+| fine-tuned, zero-shot | 83.1% | 80.1% |
+| **fine-tuned + 3 examples** | **88.0%** | **85.8%** |
+
+Training runs on MLX (Apple Silicon). The PyTorch backend loads PEFT adapters, but a PyTorch
+training script is not included yet.
+
 ## How to change routing
 
 Edit the label descriptions in `triago/pipeline.py` (`SECURITY`, `GROUPS`), keeping
@@ -147,6 +188,8 @@ queues (+7 points) because they carry team conventions.
 - `triago/scorer.py` — MLX scorer: restricted softmax over label tokens, in-context single-token check, prefix KV cache, optional examples
 - `triago/pipeline.py` — taxonomy, priority matrix, `Policy`, `route()` (pure, re-evaluable offline), `is_confident()`
 - `triago/examples.py` — `ExampleStore`: char n-gram TF-IDF retrieval of similar labeled tickets
+- `triago/backends.py` — where the forward pass runs: MLX (Apple Silicon) or PyTorch (CUDA/MPS/CPU)
+- `triago/finetune.py` — local LoRA fine-tuning with PII scrubbing, answer-only loss and an accept/reject gate
 - `triago/connector.py` — the two-method interface any ticketing system implements
 - `triago/serve.py` — HTTP endpoint (`POST /dispatch`) for webhook-style integration
 - `triago/glpi.py` — GLPI REST client and connector (groups, Group_Ticket, ITILFollowup)

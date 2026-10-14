@@ -89,7 +89,8 @@ def main() -> None:
     from .scorer import Scorer
     if HOST not in ("127.0.0.1", "localhost") and not API_KEY:
         raise SystemExit("refusing to listen on a non-local address without TRIAGO_API_KEY")
-    scorer, policy, store = Scorer(), Policy(), ExampleStore.from_data()
+    scorer, store = Scorer(), ExampleStore.from_data()
+    policy = Policy.for_scorer(scorer)
     print(f"triago listening on http://{HOST}:{PORT}  (POST /dispatch, GET /health)", flush=True)
     HTTPServer((HOST, PORT), make_handler(scorer, policy, store)).serve_forever()
 

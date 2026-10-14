@@ -9,3 +9,5 @@ data/external/**/*.csv
 # produced from your own GLPI instance
 data/feedback.jsonl
 *.egg-info/
+# LoRA adapters have seen your tickets: never commit them
+adapters/

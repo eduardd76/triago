@@ -4,12 +4,25 @@ on:
   pull_request:
 jobs:
   pytest:
-    runs-on: macos-latest  # Apple Silicon: MLX has no Linux wheels without extras
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest    # MLX backend (Apple Silicon) + PyTorch backend
+            extras: "torch,dev"
+          - os: ubuntu-latest   # PyTorch backend, CPU
+            extras: "torch,dev"
+          - os: windows-latest  # PyTorch backend, CPU
+            extras: "torch,dev"
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev]"
-      - run: pytest -q  # no model download: the scorer tests use a fake tokenizer
+      - name: CPU-only PyTorch on Linux (the default wheel bundles CUDA, ~2 GB)
+        if: runner.os == 'Linux'
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -e ".[${{ matrix.extras }}]"
+      - run: pytest -q  # unit tests use a fake tokenizer; backend tests a tiny random Qwen3 (~MBs)
