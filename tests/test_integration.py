@@ -39,3 +39,16 @@ def test_load_connector_from_spec():
     assert isinstance(connector.load(f"{__name__}:FakeConnector"), FakeConnector)
     with pytest.raises(ValueError):
         connector.load("no_colon_here")
+
+
+def test_security_p_is_the_calibrated_value_the_gate_compared():
+    from triago.pipeline import Policy, recalibrate
+    sec = Decision("normal", {"security": 0.0, "normal": 1.0}, 50.0, {"security": -10.0, "normal": 0.0})
+    out = to_json(Dispatch("network", 3, True, "", {"security": sec}), Policy())
+    assert out["security_p"] == round(recalibrate(sec, Policy().security_temperature).probabilities["security"], 4)
+    assert out["security_trip"] == Policy().security_trip
+
+
+def test_ui_page_ships_with_the_package():
+    from triago.serve import PAGE
+    assert PAGE.exists() and b"/dispatch" in PAGE.read_bytes()

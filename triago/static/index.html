@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>triago</title>
+<style>
+  :root {
+    --bg: #f6f6f4;
+    --surface: #ffffff;
+    --surface-2: #f1f1ee;
+    --border: #e4e4df;
+    --text: #1b1b19;
+    --muted: #6b6b66;
+    --faint: #9a9a94;
+    --bar: #d9d9d3;
+    --accent: #1b1b19;
+    --auto: #1f7a4d;   --auto-bg: #e7f4ec;
+    --triage: #9a6200; --triage-bg: #fbf1dc;
+    --sec: #b42318;    --sec-bg: #fdecea;
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --radius: 12px;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #131312; --surface: #1c1c1b; --surface-2: #242422; --border: #30302d;
+      --text: #ededea; --muted: #a3a39d; --faint: #75756f; --bar: #3a3a37; --accent: #ededea;
+      --auto: #5cc48d; --auto-bg: #17301f; --triage: #f0b451; --triage-bg: #33280f;
+      --sec: #ff7b6e; --sec-bg: #3a1714;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 24px 16px 64px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: baseline; gap: 12px; }
+  .brand b { font-size: 20px; letter-spacing: -0.02em; }
+  .brand span { color: var(--muted); font-size: 14px; }
+  .status { display: flex; gap: 6px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+  .status span { background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+  .status .on { color: var(--auto); border-color: color-mix(in srgb, var(--auto) 35%, var(--border)); }
+
+  main { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
+  @media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); } }
+
+  @media (min-width: 861px) { .compose { position: sticky; top: 16px; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+
+  /* compose */
+  label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 6px; }
+  label + input, label + textarea { margin-bottom: 14px; }
+  input, textarea {
+    width: 100%; font: inherit; color: var(--text); background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; outline: none;
+    transition: border-color 150ms ease, background-color 150ms ease;
+  }
+  textarea { resize: vertical; min-height: 168px; }
+  input:focus, textarea:focus { border-color: var(--text); background: var(--surface); }
+  .samples { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 2px 0 18px; font-size: 13px; color: var(--muted); }
+  .chip {
+    font: inherit; font-size: 12.5px; color: var(--text); background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; cursor: pointer;
+    transition: background-color 150ms ease, transform 120ms var(--ease-out);
+  }
+  .chip:active { transform: scale(0.97); }
+  @media (hover: hover) and (pointer: fine) { .chip:hover { background: var(--border); } }
+  .actions { display: flex; align-items: center; gap: 12px; }
+  .go {
+    font: inherit; font-weight: 600; color: var(--bg); background: var(--accent);
+    border: 0; border-radius: 8px; padding: 10px 18px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+    transition: transform 140ms var(--ease-out), opacity 150ms ease;
+  }
+  .go:active { transform: scale(0.97); }
+  .go:disabled { opacity: 0.55; cursor: progress; }
+  .hint { color: var(--faint); font-size: 12.5px; }
+  kbd { font: 11.5px var(--mono); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
+  .spin { width: 13px; height: 13px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 600ms linear infinite; display: none; }
+  .busy .spin { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .key { margin-top: 14px; display: none; }
+  .key.show { display: block; }
+  .err { color: var(--sec); font-size: 13.5px; margin-top: 12px; min-height: 1em; }
+
+  /* result */
+  .result { transition: opacity 150ms ease; }
+  .result.dim { opacity: 0.55; }
+  .empty { color: var(--muted); padding: 36px 8px; text-align: center; }
+  .empty b { display: block; color: var(--text); font-size: 16px; margin-bottom: 4px; }
+  .verdict { border-radius: 10px; padding: 16px 18px; margin: -4px -4px 18px; }
+  .verdict.auto { background: var(--auto-bg); }
+  .verdict.triage { background: var(--triage-bg); }
+  .verdict.sec { background: var(--sec-bg); }
+  .kicker { font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+  .auto .kicker { color: var(--auto); } .triage .kicker { color: var(--triage); } .sec .kicker { color: var(--sec); }
+  .team { font-size: 26px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.2; margin: 4px 0 8px; }
+  .why { color: var(--text); font-size: 14.5px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .meta span { font-size: 12.5px; background: color-mix(in srgb, var(--surface) 70%, transparent); border-radius: 6px; padding: 2px 8px; }
+  .meta .prio { font-weight: 700; }
+  .reveal { animation: reveal 220ms var(--ease-out); }
+  @keyframes reveal { from { opacity: 0; transform: translateY(4px); } }
+
+  h3 { font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin: 22px 0 10px; }
+  .rows { display: grid; gap: 7px; }
+  .row { display: grid; grid-template-columns: minmax(110px, 190px) 1fr 44px; gap: 10px; align-items: center; font-size: 13.5px; }
+  .row .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row.top .name { font-weight: 650; }
+  .row .pct { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .row.top .pct { color: var(--text); font-weight: 650; }
+  .track { position: relative; height: 8px; background: var(--surface-2); border-radius: 999px; }
+  .fill { position: absolute; inset: 0; background: var(--bar); border-radius: 999px; transform-origin: left; transform: scaleX(0);
+          transition: transform 260ms var(--ease-out); }
+  .row.top .fill { background: var(--text); }
+  .tick { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--muted); border-radius: 1px; opacity: 0.6; }
+  .legend { font-size: 12px; color: var(--faint); margin-top: 8px; }
+  .gate .fill { background: var(--auto); }
+  .gate.tripped .fill { background: var(--sec); }
+  .matrix { font-size: 14px; }
+  .matrix b { font-weight: 650; }
+  .examples { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .examples li { background: var(--surface-2); border-radius: 8px; padding: 9px 11px; font-size: 13.5px; display: grid; gap: 2px; }
+  .examples .g { font-size: 12px; color: var(--muted); }
+  details { margin-top: 22px; font-size: 13px; }
+  summary { cursor: pointer; color: var(--muted); }
+  pre { font: 12px/1.5 var(--mono); background: var(--surface-2); border-radius: 8px; padding: 12px; overflow: auto; max-height: 360px; }
+  footer { color: var(--faint); font-size: 12.5px; margin-top: 28px; text-align: center; }
+  footer a { color: inherit; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fill { transition: none; }
+    .reveal { animation: fade 150ms ease; }
+    @keyframes fade { from { opacity: 0; } }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><b>triago</b><span>One forward pass. Right team — or it asks.</span></div>
+    <div class="status" id="status"><span>connecting…</span></div>
+  </header>
+
+  <main>
+    <section class="card compose">
+      <form id="form" autocomplete="off">
+        <label for="subject">Subject</label>
+        <input id="subject" placeholder="e.g. VPN drops every 10 minutes">
+        <label for="body">Description</label>
+        <textarea id="body" placeholder="What the user wrote. Any language works."></textarea>
+        <div class="samples" id="samples">Try:</div>
+        <div class="actions">
+          <button class="go" id="go" type="submit"><span class="spin"></span><span id="golabel">Dispatch</span></button>
+          <span class="hint"><kbd>⌘</kbd> <kbd>↵</kbd></span>
+        </div>
+        <div class="key" id="keybox">
+          <label for="key">API key</label>
+          <input id="key" type="password" placeholder="TRIAGO_API_KEY">
+        </div>
+        <div class="err" id="err" role="alert"></div>
+      </form>
+    </section>
+
+    <section class="card result" id="result" aria-live="polite">
+      <div class="empty"><b>Where should this ticket go?</b>Paste a ticket, or pick an example, and see the decision, how sure triago is, and why.</div>
+    </section>
+  </main>
+
+  <footer>Runs locally: tickets never leave this machine. <a href="https://github.com/eduardd76/triago">github.com/eduardd76/triago</a></footer>
+</div>
+
+<script>
+const SAMPLES = [
+  ["VPN drops", "VPN drops every 10 minutes", "Since Monday the VPN connects fine but disconnects every 10 minutes. Two colleagues in Lyon have the same problem."],
+  ["Clicked a link", "Weird DocuSign email", "I clicked the link in a DocuSign email and typed my password, then the page went blank. Was that real?"],
+  ["Outlook", "Outlook keeps asking for password", "Since this morning Outlook asks for my password every few minutes, only on my laptop."],
+  ["Payslip", "Question about my payslip", "Hi, my September payslip shows the wrong number of vacation days. Who can fix this?"],
+  ["Imprimante", "Imprimante bloquée", "L'imprimante du 3e étage affiche 'bourrage papier' mais il n'y a pas de papier coincé."],
+];
+const $ = id => document.getElementById(id);
+let INFO = null;
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+const pct = p => (p >= 0.995 ? ">99" : p < 0.005 ? "<1" : p < 0.1 ? (p * 100).toFixed(1) : Math.round(p * 100)) + "%";
+const nameOf = k => (INFO && INFO.groups[k]) || k;
+
+for (const [label, s, b] of SAMPLES) {
+  const c = el("button", "chip", label);
+  c.type = "button";
+  c.onclick = () => { $("subject").value = s; $("body").value = b; dispatch(); };
+  $("samples").append(c);
+}
+
+async function loadInfo() {
+  try {
+    INFO = await (await fetch("/info")).json();
+    const st = $("status"); st.replaceChildren();
+    const model = INFO.model.split("/").pop();
+    st.append(el("span", "", model), el("span", "", INFO.backend + (INFO.device ? " · " + INFO.device : "")));
+    st.append(el("span", INFO.adapter ? "on" : "", INFO.adapter ? "fine-tuned: " + INFO.adapter.split("/").pop() : "no adapter"));
+    st.append(el("span", "", INFO.examples + " past tickets"));
+    if (INFO.auth) $("keybox").classList.add("show");
+  } catch { $("status").replaceChildren(el("span", "", "server not reachable")); }
+}
+
+function headers() {
+  const h = { "Content-Type": "application/json" };
+  const k = $("key").value.trim();
+  if (k) h.Authorization = "Bearer " + k;
+  return h;
+}
+
+async function dispatch() {
+  const subject = $("subject").value.trim(), body = $("body").value.trim();
+  if (!subject && !body) { $("err").textContent = "Write a subject or a description first."; $("subject").focus(); return; }
+  $("err").textContent = "";
+  $("go").disabled = true; $("go").classList.add("busy"); $("golabel").textContent = "Scoring…";
+  $("result").classList.add("dim");
+  try {
+    const r = await fetch("/dispatch", { method: "POST", headers: headers(), body: JSON.stringify({ subject, body }) });
+    const d = await r.json();
+    if (r.status === 401) { $("keybox").classList.add("show"); $("key").focus(); throw new Error("This server needs its API key."); }
+    if (!r.ok) throw new Error(d.error || "Request failed (" + r.status + ")");
+    render(d, subject, body);
+    if (matchMedia("(max-width: 860px)").matches) $("result").scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  } catch (e) {
+    $("err").textContent = e.message === "Failed to fetch" ? "Can't reach triago. Is `python -m triago.serve` running?" : e.message;
+  } finally {
+    $("go").disabled = false; $("go").classList.remove("busy"); $("golabel").textContent = "Dispatch";
+    $("result").classList.remove("dim");
+  }
+}
+
+function bars(rows, opts = {}) {
+  const box = el("div", "rows");
+  rows.forEach(([label, p], i) => {
+    const row = el("div", "row" + (i === 0 && opts.highlight !== false ? " top" : ""));
+    const track = el("div", "track"), fill = el("div", "fill");
+    fill.style.transitionDelay = (i * 25) + "ms";
+    track.append(fill);
+    if (opts.tick !== undefined && (i === 0 || opts.allTicks)) { const t = el("div", "tick"); t.style.left = (opts.tick * 100) + "%"; t.title = opts.tickTitle || ""; track.append(t); }
+    row.append(el("div", "name", label), track, el("div", "pct", pct(p)));
+    box.append(row);
+    requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.transform = `scaleX(${Math.max(p, 0.004)})`; }));
+  });
+  return box;
+}
+
+function render(d, subject, body) {
+  const pol = INFO ? INFO.policy : { min_top: 0.9, min_margin: 0.25, security_trip: d.security_trip };
+  const res = $("result"); res.replaceChildren();
+  const kind = d.security_incident ? "sec" : d.auto ? "auto" : "triage";
+  const v = el("div", "verdict reveal " + kind);
+  const group = d.probabilities.group || {};
+  const ranked = Object.entries(group).sort((a, b) => b[1] - a[1]);
+  let kicker, team, why;
+  if (kind === "sec") {
+    team = nameOf("security");
+    if (d.security_p < 4 * d.security_trip) {
+      kicker = "Possible security incident";
+      why = `Borderline: the security gate scored this ${pct(d.security_p)}, just over its ${pct(d.security_trip)} trip point. triago sends borderline cases to the SOC on purpose, so this may be a false alarm the SOC dismisses in a minute.`;
+    } else {
+      kicker = "Security incident";
+      why = `The security gate scored this ${pct(d.security_p)}, far above its ${pct(d.security_trip)} trip point. Incidents skip normal routing and go straight to the SOC as P1.`;
+    }
+  } else if (kind === "auto") {
+    const [, p1] = ranked[0], p2 = ranked[1] ? ranked[1][1] : 0;
+    kicker = "Auto-assigned"; team = nameOf(d.group);
+    why = `${pct(p1)} sure, ${Math.round((p1 - p2) * 100)} points ahead of ${ranked[1] ? nameOf(ranked[1][0]) : "the rest"}. Auto-assign needs at least ${pct(pol.min_top)} and a ${Math.round(pol.min_margin * 100)}-point lead.`;
+  } else {
+    const [k1, p1] = ranked[0], [k2, p2] = ranked[1] || ["", 0];
+    kicker = "Sent to human triage"; team = d.group === "other" ? nameOf("other") + "?" : nameOf(d.group) + "?";
+    why = d.group === "other"
+      ? `${pct(p1)} sure this isn't an IT matter (HR, payroll, auto-replies…) or has nothing to act on. "Not IT" is never auto-assigned: a person forwards or closes it.`
+      : `Not sure enough: ${pct(p1)} ${nameOf(k1)} vs ${pct(p2)} ${nameOf(k2)}. Auto-assign needs at least ${pct(pol.min_top)} and a ${Math.round(pol.min_margin * 100)}-point lead, so a person decides.`;
+  }
+  v.append(el("div", "kicker", kicker), el("div", "team", team), el("div", "why", why));
+  const meta = el("div", "meta");
+  meta.append(el("span", "prio", "P" + d.priority));
+  if (d.impact) meta.append(el("span", "", "impact " + d.impact), el("span", "", "urgency " + d.urgency));
+  meta.append(el("span", "", (d.latency_ms / 1000).toFixed(2) + " s · " + (d.examples ? d.examples.length + " examples" : "no examples")));
+  v.append(meta);
+  res.append(v);
+
+  if (d.security_p !== null && d.security_p !== undefined) {
+    res.append(el("h3", "", "Security gate"));
+    const g = bars([["Incident?", d.security_p]], { tick: d.security_trip, tickTitle: "trip point", highlight: false });
+    g.classList.add("gate"); if (d.security_incident) g.classList.add("tripped");
+    res.append(g, el("div", "legend", `Line = trip point (${pct(d.security_trip)}). Set low on purpose: better a false alarm than a missed incident.`));
+  }
+  if (ranked.length) {
+    res.append(el("h3", "", "Which team"));
+    res.append(bars(ranked.map(([k, p]) => [nameOf(k), p]), { tick: pol.min_top, tickTitle: "auto-assign threshold" }));
+    res.append(el("div", "legend", `Line on the top bar = auto-assign threshold (${pct(pol.min_top)}). Scores are calibrated on labeled tickets: 90% means about 9 in 10 such tickets are routed right.`));
+  }
+  if (d.impact) {
+    res.append(el("h3", "", "Priority"));
+    const m = el("div", "matrix");
+    m.append("Impact ", el("b", "", d.impact), " × urgency ", el("b", "", d.urgency), " → ", el("b", "", "P" + d.priority), " (ITIL matrix, 1 = most urgent)");
+    res.append(m);
+  }
+  if (d.examples && d.examples.length) {
+    res.append(el("h3", "", "Similar past tickets it looked at"));
+    const ul = el("ul", "examples");
+    for (const ex of d.examples) {
+      const li = el("li");
+      li.append(el("div", "", ex.text.length > 180 ? ex.text.slice(0, 180) + "…" : ex.text), el("div", "g", "→ " + nameOf(ex.group)));
+      ul.append(li);
+    }
+    res.append(ul);
+  }
+  const det = el("details"); det.append(el("summary", "", "For integrators: this response as JSON"));
+  const curl = `curl -s ${location.origin}/dispatch -d '${JSON.stringify({ subject, body }).replace(/'/g, "'\\''")}'`;
+  det.append(el("pre", "", curl), el("pre", "", JSON.stringify(d, null, 2)));
+  res.append(det);
+}
+
+$("form").addEventListener("submit", e => { e.preventDefault(); dispatch(); });
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); dispatch(); }
+});
+loadInfo();
+</script>
+</body>
+</html>

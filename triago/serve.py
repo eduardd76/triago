@@ -14,9 +14,12 @@ import hmac
 import json
 import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 
 from .examples import ExampleStore
-from .pipeline import Dispatch, Policy, dispatch
+from .pipeline import GROUPS, IMPACT, URGENCY, Dispatch, Policy, dispatch, recalibrate
+
+PAGE = Path(__file__).with_name("static") / "index.html"
 
 HOST = os.environ.get("TRIAGO_HOST", "127.0.0.1")
 PORT = int(os.environ.get("TRIAGO_PORT", "8642"))
@@ -24,9 +27,14 @@ API_KEY = os.environ.get("TRIAGO_API_KEY", "")
 TRIAGE_QUEUE = "triage"
 
 
-def to_json(d: Dispatch) -> dict:
-    """The response contract. `assign_to` is what to do; `group` is the model's best guess either way."""
+def to_json(d: Dispatch, policy: Policy | None = None) -> dict:
+    """The response contract. `assign_to` is what to do; `group` is the model's best guess either way.
+    `security_p` is the calibrated probability the security gate compared with `security_trip`."""
     imp, urg = d.decisions.get("impact"), d.decisions.get("urgency")
+    policy = policy or Policy()
+    sec = d.decisions.get("security")
+    sec_p = (recalibrate(sec, policy.security_temperature).probabilities["security"]
+             if sec is not None and sec.logits else None)
     return {
         "assign_to": d.group if d.auto else TRIAGE_QUEUE,
         "group": d.group,
@@ -35,9 +43,28 @@ def to_json(d: Dispatch) -> dict:
         "impact": imp.choice if imp else None,
         "urgency": urg.choice if urg else None,
         "security_incident": d.group == "security",
+        "security_p": round(sec_p, 4) if sec_p is not None else None,
+        "security_trip": policy.security_trip,
         "reason": d.reason,
         "probabilities": {k: {c: round(p, 4) for c, p in v.probabilities.items()} for k, v in d.decisions.items()},
         "latency_ms": round(d.latency_ms),
+    }
+
+
+def info(scorer, policy: Policy, store: ExampleStore | None) -> dict:
+    """What the UI needs to explain a decision: who the teams are and what the rules are."""
+    return {
+        "model": scorer.model_path,
+        "backend": getattr(scorer.backend, "name", "?"),
+        "device": getattr(scorer.backend, "device", None),
+        "adapter": scorer.adapter_path,
+        "examples": len(store.rows) if store else 0,
+        "auth": bool(API_KEY),
+        "policy": {"min_top": policy.min_top, "min_margin": policy.min_margin,
+                   "security_trip": policy.security_trip, "shots": policy.shots},
+        "groups": {k: v.split(":")[0] for k, v in GROUPS.items()} | {"security": "Security Operations (SOC)",
+                                                                       "other": "Not IT / no action"},
+        "impact": IMPACT, "urgency": URGENCY,
     }
 
 
@@ -66,8 +93,17 @@ def make_handler(scorer, policy: Policy, store: ExampleStore | None):
             return hmac.compare_digest(self.headers.get("Authorization", ""), f"Bearer {API_KEY}")
 
         def do_GET(self):
+            if self.path in ("/", "/index.html"):
+                data = PAGE.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                return self.wfile.write(data)
             if self.path == "/health":
                 return self._send(200, {"ok": True, "examples": len(store.rows) if store else 0})
+            if self.path == "/info":
+                return self._send(200, info(scorer, policy, store))
             self._send(404, {"error": "not found"})
 
         def do_POST(self):
@@ -80,7 +116,12 @@ def make_handler(scorer, policy: Policy, store: ExampleStore | None):
                 text = ticket_text(json.loads(self.rfile.read(n) or b"{}"))
             except (ValueError, json.JSONDecodeError) as e:
                 return self._send(400, {"error": str(e)})
-            self._send(200, to_json(dispatch(scorer, text, policy, store)))
+            d = dispatch(scorer, text, policy, store)
+            out = to_json(d, policy)
+            if d.group != "security" and store is not None and policy.shots:
+                # same deterministic lookup the group decision used
+                out["examples"] = [{"text": t, "group": g} for t, g in store.nearest(text, policy.shots, allowed=GROUPS)]
+            self._send(200, out)
 
     return Handler
 
@@ -91,7 +132,7 @@ def main() -> None:
         raise SystemExit("refusing to listen on a non-local address without TRIAGO_API_KEY")
     scorer, store = Scorer(), ExampleStore.from_data()
     policy = Policy.for_scorer(scorer)
-    print(f"triago listening on http://{HOST}:{PORT}  (POST /dispatch, GET /health)", flush=True)
+    print(f"triago listening on http://{HOST}:{PORT}  (UI at /, POST /dispatch, GET /health)", flush=True)
     HTTPServer((HOST, PORT), make_handler(scorer, policy, store)).serve_forever()
 
 

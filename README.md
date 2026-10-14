@@ -2,8 +2,12 @@
 
 **One forward pass. Right team — or it asks.**  Local, calibrated IT ticket dispatching for GLPI or any ticketing system.
 
-Fixed-answer scoring (Jev-style) on Apple Silicon via MLX, wired to a GLPI demo ITSM.
-No fine-tuning and no generated text: every decision is **one forward pass**, then a softmax over
+![triago UI: a VPN ticket auto-assigned to Network at 98%, with the security gate, team probabilities and priority](docs/ui.jpg)
+
+Try it in 2 minutes: `pip install -e ".[dev]"`, then `python -m triago.serve` and open http://localhost:8642 (the first run downloads the ~2.5 GB model).
+
+A local Jev: fixed-answer scoring on MLX (Apple Silicon) or PyTorch (Linux/Windows), wired to a GLPI demo ITSM.
+No generated text and no training required (fine-tuning is optional): every decision is **one forward pass**, then a softmax over
 the logits of the allowed label tokens (A, B, C, ...) only.
 
 Each ticket goes through bounded decisions:
@@ -60,6 +64,11 @@ in `triago/pipeline.py` were fitted for the MLX 4-bit model; on another backend 
 `python -m triago.bench` and use its temperatures.
 
 ## Run
+
+```bash
+python -m triago.serve                             # UI at http://localhost:8642 + POST /dispatch API
+```
+
 
 ```bash
 cd itsm && docker compose up -d          # GLPI at http://localhost:8080  (glpi / glpi) — demo only
@@ -191,7 +200,8 @@ queues (+7 points) because they carry team conventions.
 - `triago/backends.py` — where the forward pass runs: MLX (Apple Silicon) or PyTorch (CUDA/MPS/CPU)
 - `triago/finetune.py` — local LoRA fine-tuning with PII scrubbing, answer-only loss and an accept/reject gate
 - `triago/connector.py` — the two-method interface any ticketing system implements
-- `triago/serve.py` — HTTP endpoint (`POST /dispatch`) for webhook-style integration
+- `triago/serve.py` — HTTP endpoint (`POST /dispatch`) for webhook-style integration, and the UI at `/`
+- `triago/static/index.html` — the one-page UI (no build step, no external resources)
 - `triago/glpi.py` — GLPI REST client and connector (groups, Group_Ticket, ITILFollowup)
 - `triago/dispatcher.py` — poll loop + feedback export
 - `triago/bench.py` — benchmark, temperature + security-threshold fitting, calibration tables, holdout mode
