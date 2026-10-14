@@ -1,0 +1,14 @@
+----- Metrics Report -----
+                   precision    recall  f1-score   support
+
+ Active Directory       0.41      0.35      0.38        49
+Computer-Services       0.71      0.41      0.52        41
+              EOL       1.00      1.00      1.00        58
+      Fileservice       0.92      0.95      0.93       138
+             O365       0.82      0.73      0.77        92
+         Software       0.67      0.53      0.60        58
+  Support general       0.75      0.90      0.82       221
+
+         accuracy                           0.79       657
+        macro avg       0.75      0.70      0.72       657
+     weighted avg       0.78      0.79      0.78       657

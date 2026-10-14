@@ -1,0 +1,64 @@
+{"t": "VPN disconnects every 10 minutes | Since this morning the GlobalProtect VPN drops every ~10 min for the whole sales team working from home.", "g": "network", "i": "medium", "u": "medium"}
+{"t": "No internet on 3rd floor | Nobody on the 3rd floor can reach any website, wired or wifi. Finance closing is today.", "g": "network", "i": "high", "u": "high"}
+{"t": "Wifi slow in cafeteria | Guest wifi in the cafeteria is really slow, pages take ages.", "g": "network", "i": "medium", "u": "low"}
+{"t": "Cannot resolve intranet.corp.local | Getting DNS_PROBE_FINISHED_NXDOMAIN for intranet.corp.local from my laptop, colleagues next to me are fine.", "g": "network", "i": "low", "u": "medium"}
+{"t": "Firewall rule request | Please open TCP 8443 from 10.20.0.0/16 to the new monitoring server for the project starting next month.", "g": "network", "i": "low", "u": "low"}
+{"t": "Branch office Lyon offline | The whole Lyon branch lost connectivity to HQ, MPLS link seems down. 40 people cannot work.", "g": "network", "i": "high", "u": "high"}
+{"t": "Switch port dead | The network port at desk 4.12 does not work, I use wifi meanwhile.", "g": "network", "i": "low", "u": "low"}
+{"t": "File server F: drive not accessible | \\\\fs01\\share returns 'network path not found' for everyone in accounting.", "g": "server_infra", "i": "high", "u": "high"}
+{"t": "VM needs more disk | Our build VM build-07 is at 95% disk, please extend by 200GB this week.", "g": "server_infra", "i": "medium", "u": "medium"}
+{"t": "Restore deleted folder | I accidentally deleted the folder Q3-reports on the shared drive yesterday, can you restore it from backup?", "g": "server_infra", "i": "low", "u": "medium"}
+{"t": "Backup job failed | Nightly Veeam backup of SQL02 failed with error 'insufficient storage' two nights in a row.", "g": "server_infra", "i": "medium", "u": "medium"}
+{"t": "Production database server down | SQL01 is not responding, all order processing is halted.", "g": "server_infra", "i": "high", "u": "high"}
+{"t": "New test server request | Need a Linux VM (4 vCPU, 16GB) for the QA team, not urgent.", "g": "server_infra", "i": "low", "u": "low"}
+{"t": "Laptop won't boot | My Dell laptop shows a black screen after the logo, I have a client meeting in 1 hour.", "g": "end_user", "i": "low", "u": "high"}
+{"t": "Printer jam 2nd floor | The HP printer near the kitchen on floor 2 keeps jamming.", "g": "end_user", "i": "medium", "u": "low"}
+{"t": "Install Visio | Can you install Microsoft Visio on my computer please?", "g": "end_user", "i": "low", "u": "low"}
+{"t": "Second monitor flickering | My external monitor flickers constantly, I can still work on the laptop screen.", "g": "end_user", "i": "low", "u": "medium"}
+{"t": "Keyboard broken | Several keys on my keyboard stopped working, need a replacement.", "g": "end_user", "i": "low", "u": "medium"}
+{"t": "Windows update stuck | My PC has been stuck on 'Working on updates 30%' for two hours.", "g": "end_user", "i": "low", "u": "high"}
+{"t": "New hire laptop | Please prepare a laptop for Maria who starts on Monday in Marketing.", "g": "end_user", "i": "low", "u": "low"}
+{"t": "Locked out of my account | Entered the wrong password too many times and now my account is locked.", "g": "identity_access", "i": "low", "u": "high"}
+{"t": "Password reset | I forgot my password after vacation, please reset it.", "g": "identity_access", "i": "low", "u": "high"}
+{"t": "New phone MFA | I changed my phone and the Authenticator app no longer has my account, cannot log in.", "g": "identity_access", "i": "low", "u": "high"}
+{"t": "Access to HR SharePoint site | I need read access to the HR Policies SharePoint site, my manager approved.", "g": "identity_access", "i": "low", "u": "low"}
+{"t": "Offboarding John Smith | John leaves on Friday, please disable his accounts at end of day Friday.", "g": "identity_access", "i": "low", "u": "low"}
+{"t": "Add user to finance group | Please add Paul to the AD group FIN-Readers.", "g": "identity_access", "i": "low", "u": "low"}
+{"t": "Nobody can log in to Windows | Since 8:00 no one in the Berlin office can log into their PCs, 'trust relationship failed'.", "g": "identity_access", "i": "high", "u": "high"}
+{"t": "Outlook not syncing | Outlook says 'disconnected' and I'm not receiving emails since this morning, webmail works.", "g": "application", "i": "low", "u": "medium"}
+{"t": "SAP error when posting invoice | SAP returns error F5 702 when we post invoices, the whole AP team is blocked.", "g": "application", "i": "medium", "u": "high"}
+{"t": "Teams calls dropping | Teams meetings drop after 5 minutes for me, other apps fine.", "g": "application", "i": "low", "u": "medium"}
+{"t": "CRM report wrong totals | The Salesforce pipeline report shows wrong totals since the last release.", "g": "application", "i": "medium", "u": "medium"}
+{"t": "Feature request in timesheet app | Could the timesheet app export to Excel? Would be nice for managers.", "g": "application", "i": "medium", "u": "low"}
+{"t": "Shared mailbox missing | The shared mailbox support@ disappeared from my Outlook folder list.", "g": "application", "i": "low", "u": "medium"}
+{"t": "E-commerce checkout 500 error | Customers get HTTP 500 at checkout on our webshop since 10:15, we're losing orders.", "g": "application", "i": "high", "u": "high"}
+{"t": "Desk phone no dial tone | My Cisco desk phone has no dial tone.", "g": "telephony", "i": "low", "u": "medium"}
+{"t": "Call center queue not ringing | Incoming calls to the support hotline are not reaching any agent in the call center.", "g": "telephony", "i": "high", "u": "high"}
+{"t": "Voicemail PIN reset | I need my voicemail PIN reset.", "g": "telephony", "i": "low", "u": "low"}
+{"t": "New mobile phone for manager | Please order a company mobile phone for the new sales manager.", "g": "telephony", "i": "low", "u": "low"}
+{"t": "Softphone no audio | In the Webex softphone the other side cannot hear me, mic works in Teams.", "g": "telephony", "i": "low", "u": "medium"}
+{"t": "Meeting room screen not working | The TV screen in meeting room Everest doesn't detect HDMI, board meeting at 2pm.", "g": "facilities", "i": "medium", "u": "high"}
+{"t": "Badge not opening door | My access badge stopped opening the main entrance.", "g": "facilities", "i": "low", "u": "medium"}
+{"t": "Power outage in server room wing | The east wing has no power, UPS alarms beeping.", "g": "facilities", "i": "high", "u": "high"}
+{"t": "Need extra desk | We need one more desk in office 2.07 for an intern.", "g": "facilities", "i": "low", "u": "low"}
+{"t": "Suspicious email with invoice | I got an invoice email from an unknown sender with a .zip attachment, I opened it, now my PC is slow.", "g": "security", "i": "high", "u": "high"}
+{"t": "Entered password on fake page | I clicked a link in an email that looked like Microsoft login and typed my password.", "g": "security", "i": "high", "u": "high"}
+{"t": "Files renamed .locked | All files on my desktop now end with .locked and there is a README asking for bitcoin.", "g": "security", "i": "high", "u": "high"}
+{"t": "Laptop stolen | My laptop was stolen from my car last night.", "g": "security", "i": "high", "u": "high"}
+{"t": "Login from unknown country | I received an alert of a sign-in to my account from Nigeria, I'm in Paris.", "g": "security", "i": "high", "u": "high"}
+{"t": "USB stick found in parking | Someone found a USB stick labeled 'Salaries 2026' in the parking lot, what should we do?", "g": "security", "i": "medium", "u": "medium"}
+{"t": "Lunch menu | What is on the canteen menu this week?", "g": "other", "i": "low", "u": "low"}
+{"t": "Question about my payslip | My payslip shows the wrong number of vacation days.", "g": "other", "i": "low", "u": "low"}
+{"t": "It's broken | It doesn't work again, please fix.", "g": "other", "i": "low", "u": "medium"}
+{"t": "Parking space request | Can I get a parking spot in the underground garage?", "g": "facilities", "i": "low", "u": "low"}
+{"t": "Slow everything | Everything is slow today, opening files, websites and SAP.", "g": "network", "i": "medium", "u": "medium"}
+{"t": "Can't print from SAP | Printing delivery notes from SAP fails, other apps print fine.", "g": "application", "i": "medium", "u": "medium"}
+{"t": "Email bounce to customer domain | Emails to @acme-client.com bounce with 550 SPF fail.", "g": "application", "i": "medium", "u": "medium"}
+{"t": "Can't access VPN after password change | Changed my password yesterday, now VPN says authentication failed.", "g": "identity_access", "i": "low", "u": "high"}
+{"t": "Teams room device offline | The Teams Room panel in room Mont Blanc shows offline.", "g": "facilities", "i": "medium", "u": "medium"}
+{"t": "Website certificate expired | Our partner portal shows 'certificate expired' warning to all customers.", "g": "server_infra", "i": "high", "u": "high"}
+{"t": "Excel crashes on macro | Excel crashes every time I run the monthly budget macro.", "g": "end_user", "i": "low", "u": "medium"}
+{"t": "Mobile email setup | Please help me set up company email on my new iPhone.", "g": "telephony", "i": "low", "u": "low"}
+{"t": "Colleague shared admin password in chat | A colleague posted the domain admin password in a Teams channel with 200 members.", "g": "security", "i": "high", "u": "high"}
+{"t": "Access to production server | I need SSH access to prod-app-01 for the release tonight.", "g": "identity_access", "i": "low", "u": "medium"}
+{"t": "Projector bulb | The projector in training room B is very dim, probably needs a new bulb.", "g": "facilities", "i": "low", "u": "low"}

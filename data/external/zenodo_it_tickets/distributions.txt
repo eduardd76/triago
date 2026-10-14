@@ -1,0 +1,11 @@
+Train len: 1572
+Test len: 657
+Train distribuitions:
+Fileservice          546
+Support general      541
+Software             164
+O365                 127
+Active Directory      84
+Computer-Services     65
+EOL                   45
+Name: category_truth, dtype: int64

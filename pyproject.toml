@@ -1,0 +1,21 @@
+[project]
+name = "triago"
+version = "0.1.0"
+description = "Scored (fixed-answer) IT ticket dispatching on Apple Silicon with MLX, integrated with GLPI"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+dependencies = [
+    "mlx>=0.32,<0.33",
+    "mlx-lm>=0.32,<0.33",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools]
+packages = ["triago"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

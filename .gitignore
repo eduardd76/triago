@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.remember/
+.DS_Store
+# third-party data: fetched by scripts/fetch_zenodo.py (CC BY 4.0), not redistributed here
+data/external/**/*.csv
+# produced from your own GLPI instance
+data/feedback.jsonl
+*.egg-info/

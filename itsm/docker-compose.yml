@@ -1,0 +1,30 @@
+# Demo ITSM: GLPI (official image) + MySQL. UI at http://localhost:8080 (glpi/glpi)
+services:
+  glpi:
+    image: glpi/glpi:latest
+    restart: unless-stopped
+    environment:
+      GLPI_DB_HOST: db
+      GLPI_DB_PORT: 3306
+      GLPI_DB_NAME: glpi
+      GLPI_DB_USER: glpi
+      GLPI_DB_PASSWORD: glpi
+    volumes:
+      - glpi_data:/var/glpi
+    depends_on:
+      - db
+    ports:
+      - "8080:80"
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_DATABASE: glpi
+      MYSQL_USER: glpi
+      MYSQL_PASSWORD: glpi
+    volumes:
+      - db_data:/var/lib/mysql
+volumes:
+  glpi_data:
+  db_data:
