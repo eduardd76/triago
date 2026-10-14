@@ -1,7 +1,7 @@
 [project]
 name = "triago"
 version = "0.1.0"
-description = "Scored (fixed-answer) IT ticket dispatching on Apple Silicon with MLX, integrated with GLPI"
+description = "Scored (fixed-answer) IT ticket dispatching on Apple Silicon with MLX, pluggable into any ticketing system (GLPI included)"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"

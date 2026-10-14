@@ -1,6 +1,6 @@
 # triago  [![tests](https://github.com/eduardd76/triago/actions/workflows/tests.yml/badge.svg)](https://github.com/eduardd76/triago/actions/workflows/tests.yml)
 
-**One forward pass. Right team — or it asks.**  Local, calibrated IT ticket dispatching for GLPI.
+**One forward pass. Right team — or it asks.**  Local, calibrated IT ticket dispatching for GLPI or any ticketing system.
 
 Fixed-answer scoring (Jev-style) on Apple Silicon via MLX, wired to a GLPI demo ITSM.
 No fine-tuning and no generated text: every decision is **one forward pass**, then a softmax over
