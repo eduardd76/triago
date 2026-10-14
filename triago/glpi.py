@@ -3,7 +3,12 @@ from __future__ import annotations
 
 import os
 
+import html
+import re
+
 import requests
+
+from .connector import Ticket
 
 GLPI_URL = os.environ.get("GLPI_URL", "http://localhost:8080/apirest.php")
 GLPI_USER = os.environ.get("GLPI_USER", "glpi")
@@ -27,6 +32,10 @@ LEVEL = {"high": 4, "medium": 3, "low": 2}
 GLPI_PRIORITY = {1: 6, 2: 5, 3: 4, 4: 3, 5: 2}
 STATUS_NEW = 1
 GROUP_TYPE_ASSIGN = 2
+
+
+def plain(text: str) -> str:
+    return re.sub(r"<[^>]+>", " ", html.unescape(text or "")).strip()
 
 
 class GLPI:
@@ -81,6 +90,16 @@ class GLPI:
             "tickets_id": ticket_id, "groups_id": groups[target], "type": GROUP_TYPE_ASSIGN}})
         self._req("POST", "ITILFollowup", json={"input": {
             "itemtype": "Ticket", "items_id": ticket_id, "is_private": 1, "content": note}})
+
+    # ---- Connector interface (triago/connector.py) ------------------------------
+    def pending(self) -> list[Ticket]:
+        return [Ticket(t["id"], t["name"], plain(t["content"]))
+                for t in self.new_tickets() if not self.assigned_groups(t["id"])]
+
+    def apply(self, ticket: Ticket, d, note: str) -> None:
+        imp, urg = d.decisions.get("impact"), d.decisions.get("urgency")
+        self.apply_dispatch(ticket.id, d.group, d.auto, d.priority,
+                            imp.choice if imp else "high", urg.choice if urg else "high", note)
 
     def followups(self, ticket_id: int) -> list[dict]:
         return self._req("GET", f"Ticket/{ticket_id}/ITILFollowup") or []

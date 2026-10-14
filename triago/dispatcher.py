@@ -2,7 +2,8 @@
 
     python -m triago.dispatcher run        # poll loop (every 10s)
     python -m triago.dispatcher once       # process the current queue and exit
-    python -m triago.dispatcher feedback   # export human reassignments as labeled data
+    python -m triago.dispatcher feedback   # export human reassignments as labeled data (GLPI)
+    python -m triago.dispatcher run --connector mypkg.mod:Class   # any ticketing system, see connector.py
 """
 from __future__ import annotations
 
@@ -13,18 +14,16 @@ import sys
 import time
 from pathlib import Path
 
+from . import connector as connectors
+from .connector import Connector
 from .examples import ExampleStore
-from .glpi import GLPI, GROUP_NAMES
+from .glpi import GLPI, GROUP_NAMES, plain as _plain
 from .pipeline import Policy, dispatch
 from .scorer import Scorer
 
 MARK = "[TRIAGO]"
 OLD_MARKS = ("[JEV-DISPATCH]",)  # notes written before the rename
 FEEDBACK_FILE = Path(__file__).resolve().parent.parent / "data" / "feedback.jsonl"
-
-
-def _plain(text: str) -> str:
-    return re.sub(r"<[^>]+>", " ", html.unescape(text or "")).strip()
 
 
 def _note(d) -> str:
@@ -37,19 +36,13 @@ def _note(d) -> str:
     return "<br>".join(html.escape(l) for l in lines)
 
 
-def process_queue(glpi: GLPI, scorer: Scorer, policy: Policy, store: ExampleStore | None = None) -> int:
+def process_queue(conn: Connector, scorer: Scorer, policy: Policy, store: ExampleStore | None = None) -> int:
     n = 0
-    for t in glpi.new_tickets():
-        if glpi.assigned_groups(t["id"]):
-            continue
-        text = f"{t['name']}\n{_plain(t['content'])}"
-        d = dispatch(scorer, text, policy, store)
-        imp = d.decisions.get("impact")
-        urg = d.decisions.get("urgency")
-        glpi.apply_dispatch(t["id"], d.group, d.auto, d.priority,
-                            imp.choice if imp else "high", urg.choice if urg else "high", _note(d))
-        print(f"#{t['id']:>4} {'AUTO  ' if d.auto else 'TRIAGE'} {d.group:<16} P{d.priority} "
-              f"{d.latency_ms:6.0f}ms  {t['name'][:60]}", flush=True)
+    for t in conn.pending():
+        d = dispatch(scorer, t.text, policy, store)
+        conn.apply(t, d, _note(d))
+        print(f"#{t.id!s:>6} {'AUTO  ' if d.auto else 'TRIAGE'} {d.group:<16} P{d.priority} "
+              f"{d.latency_ms:6.0f}ms  {t.subject[:60]}", flush=True)
         n += 1
     return n
 
@@ -78,24 +71,40 @@ def export_feedback(glpi: GLPI) -> None:
     print(f"wrote {len(out)} labeled tickets ({sum(r['corrected'] for r in out)} corrections) -> {FEEDBACK_FILE}")
 
 
-def main() -> None:
-    cmd = sys.argv[1] if len(sys.argv) > 1 else "run"
+def _connect(spec: str | None) -> Connector:
+    if spec:
+        return connectors.load(spec)
     glpi = GLPI()
     glpi.ensure_groups()
+    return glpi
+
+
+def main() -> None:
+    args = sys.argv[1:]
+    spec = None
+    if "--connector" in args:
+        i = args.index("--connector")
+        spec = args[i + 1]
+        del args[i:i + 2]
+    cmd = args[0] if args else "run"
+    conn = _connect(spec)
     if cmd == "feedback":
-        return export_feedback(glpi)
+        if not isinstance(conn, GLPI):
+            sys.exit("feedback export is GLPI-only; for other systems write data/feedback.jsonl yourself "
+                     '(one {"text": ..., "group": ...} per line)')
+        return export_feedback(conn)
     scorer, policy, store = Scorer(), Policy(), ExampleStore.from_data()
-    print(f"example store: {len(store.rows)} labeled tickets (incl. GLPI feedback)", flush=True)
+    print(f"example store: {len(store.rows)} labeled tickets (incl. feedback)", flush=True)
     if cmd == "once":
-        print(f"processed {process_queue(glpi, scorer, policy, store)} tickets")
+        print(f"processed {process_queue(conn, scorer, policy, store)} tickets")
         return
-    print("dispatcher polling GLPI every 10s — Ctrl+C to stop", flush=True)
+    print("dispatcher polling every 10s — Ctrl+C to stop", flush=True)
     while True:
         try:
-            process_queue(glpi, scorer, policy, store)
-        except Exception as e:  # keep the loop alive; GLPI session may expire
+            process_queue(conn, scorer, policy, store)
+        except Exception as e:  # keep the loop alive; sessions expire
             print(f"error: {e}; reconnecting", flush=True)
-            glpi = GLPI()
+            conn = _connect(spec)
         time.sleep(10)
 
 

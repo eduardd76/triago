@@ -1,4 +1,4 @@
-# triago
+# triago  [![tests](https://github.com/eduardd76/triago/actions/workflows/tests.yml/badge.svg)](https://github.com/eduardd76/triago/actions/workflows/tests.yml)
 
 **One forward pass. Right team — or it asks.**  Local, calibrated IT ticket dispatching for GLPI.
 
@@ -68,6 +68,72 @@ API setup used for the demo (DB, local only): `enable_api=1`, `enable_api_login_
 API client "full access from localhost" with IP range cleared (Docker host is not 127.0.0.1).
 Default credentials and an open API client: never expose this GLPI outside your machine.
 
+## Integrate your ticketing system
+
+GLPI is just the bundled example. Two ways to connect anything else:
+
+**1. HTTP endpoint (no code): your system calls triago.** Best for ServiceNow, Jira Service Management,
+Zammad, Freshservice, osTicket, or anything with webhooks/automation rules.
+
+```bash
+TRIAGO_API_KEY=change-me TRIAGO_HOST=0.0.0.0 python -m triago.serve     # default: 127.0.0.1:8642, no key
+curl -s localhost:8642/dispatch -H "Authorization: Bearer change-me" \
+     -d '{"subject": "VPN drops every 10 min", "body": "since Monday, whole Lyon office"}'
+```
+
+Response (shape; numbers illustrative):
+
+```json
+{"assign_to": "network", "group": "network", "auto": true, "priority": 2,
+ "impact": "high", "urgency": "medium", "security_incident": false,
+ "reason": "network=0.97, server_infra=0.01; security p=0.01", "probabilities": {...}, "latency_ms": 1100}
+```
+
+Your automation rule on "ticket created" POSTs subject + body, then sets the assignment group from
+`assign_to` (map triago's keys to your group names; `triage` means *leave it for a human*) and the
+priority from `priority` (1 = most urgent). `security_incident: true` is your hook to page the SOC.
+It refuses to listen beyond localhost without `TRIAGO_API_KEY`; put it behind TLS if it crosses machines.
+
+**2. Connector (a small Python class): triago polls your system.** Best when your ticketing system
+can't call out, or you want triago to write notes back. Implement two methods
+(contract in `triago/connector.py`):
+
+```python
+# mycompany/zammad.py
+import os, requests
+from triago.connector import Ticket
+
+GROUPS = {"network": "Network", "end_user": "Workplace", "security": "SOC"}  # ... your names
+
+class Zammad:
+    def __init__(self):
+        self.url, self.h = os.environ["ZAMMAD_URL"], {"Authorization": f"Token token={os.environ['ZAMMAD_TOKEN']}"}
+
+    def pending(self):          # new tickets that have no group yet
+        rows = requests.get(f"{self.url}/api/v1/tickets/search?query=state.name:new", headers=self.h).json()
+        return [Ticket(t["id"], t["title"], t.get("body", "")) for t in rows]
+
+    def apply(self, ticket, d, note):   # d.auto False -> your triage queue
+        group = GROUPS.get(d.group, "Service Desk") if d.auto else "Service Desk"
+        requests.put(f"{self.url}/api/v1/tickets/{ticket.id}", headers=self.h,
+                     json={"group": group, "article": {"body": note, "internal": True}})
+```
+
+```bash
+python -m triago.dispatcher run --connector mycompany.zammad:Zammad
+```
+
+(The Zammad snippet is a sketch of the shape, not a tested client — check your system's API docs.)
+
+**Make it route like your team**, in this order:
+1. Map your teams onto the 9 groups, or edit `GROUPS` in `triago/pipeline.py` to your own teams
+   (one short keyword-style description each; at most 26, since the answer labels are the letters A–Z).
+2. Add a few hundred of your own resolved tickets as examples: one `{"t": "<subject> | <body>", "g": "<group key>"}`
+   per line in `data/gen/yours.jsonl`. This is the biggest win (+7 points on real tickets) and needs no training.
+3. Re-fit calibration on your tickets (`python -m triago.bench`) before trusting `auto: true`.
+4. Keep feeding corrections back: one `{"text": ..., "group": ...}` per line in `data/feedback.jsonl`
+   (GLPI users get this from `python -m triago.dispatcher feedback`).
+
 ## How to change routing
 
 Edit the label descriptions in `triago/pipeline.py` (`SECURITY`, `GROUPS`), keeping
@@ -81,7 +147,9 @@ queues (+7 points) because they carry team conventions.
 - `triago/scorer.py` — MLX scorer: restricted softmax over label tokens, in-context single-token check, prefix KV cache, optional examples
 - `triago/pipeline.py` — taxonomy, priority matrix, `Policy`, `route()` (pure, re-evaluable offline), `is_confident()`
 - `triago/examples.py` — `ExampleStore`: char n-gram TF-IDF retrieval of similar labeled tickets
-- `triago/glpi.py` — GLPI REST client (groups, Group_Ticket, ITILFollowup)
+- `triago/connector.py` — the two-method interface any ticketing system implements
+- `triago/serve.py` — HTTP endpoint (`POST /dispatch`) for webhook-style integration
+- `triago/glpi.py` — GLPI REST client and connector (groups, Group_Ticket, ITILFollowup)
 - `triago/dispatcher.py` — poll loop + feedback export
 - `triago/bench.py` — benchmark, temperature + security-threshold fitting, calibration tables, holdout mode
 - `triago/zenodo_bench.py` — real-dataset benchmark against the authors' trained baseline
