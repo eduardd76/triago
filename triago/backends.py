@@ -2,6 +2,7 @@
 
     TRIAGO_BACKEND=mlx     Apple Silicon (default on Macs)
     TRIAGO_BACKEND=torch   PyTorch: NVIDIA CUDA on Linux/Windows, Apple MPS, or CPU (default elsewhere)
+    TRIAGO_TORCH_DEVICE=cuda|mps|cpu   force a device (default: the best one available)
 
 Each backend picks its own default model: the same Qwen3-4B-Instruct-2507, 4-bit for MLX, bf16 for PyTorch.
 """
@@ -70,9 +71,10 @@ class TorchBackend:
     def __init__(self, model_path: str, adapter_path: str | None):
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
-        if torch.cuda.is_available():
+        forced = os.environ.get("TRIAGO_TORCH_DEVICE")  # cuda | mps | cpu; default: best available
+        if forced == "cuda" or (not forced and torch.cuda.is_available()):
             self.device, dtype = "cuda", torch.bfloat16
-        elif torch.backends.mps.is_available():
+        elif forced == "mps" or (not forced and torch.backends.mps.is_available()):
             self.device, dtype = "mps", torch.float16
         else:
             self.device, dtype = "cpu", torch.bfloat16 if os.environ.get("TRIAGO_CPU_BF16") else torch.float32

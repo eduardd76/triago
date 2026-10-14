@@ -25,4 +25,6 @@ jobs:
         if: runner.os == 'Linux'
         run: pip install torch --index-url https://download.pytorch.org/whl/cpu
       - run: pip install -e ".[${{ matrix.extras }}]"
-      - run: pytest -q  # unit tests use a fake tokenizer; backend tests a tiny random Qwen3 (~MBs)
+      - run: pytest -q
+        env:
+          TRIAGO_TORCH_DEVICE: cpu  # GitHub's virtual macOS GPU cannot compile some MPS kernels  # unit tests use a fake tokenizer; backend tests a tiny random Qwen3 (~MBs)
