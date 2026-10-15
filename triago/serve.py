@@ -118,6 +118,9 @@ def make_handler(scorer, policy: Policy, store: ExampleStore | None):
                 text = ticket_text(json.loads(self.rfile.read(n) or b"{}"))
             except (ValueError, json.JSONDecodeError) as e:
                 return self._send(400, {"error": str(e)})
+            nonlocal store
+            if store is not None:
+                store = ExampleStore.refresh(store)  # picks up a new feedback export without a restart
             d = dispatch(scorer, text, policy, store)
             out = to_json(d, policy)
             if d.group != "security" and store is not None and policy.shots:
@@ -132,7 +135,7 @@ def main() -> None:
     from .scorer import Scorer
     if HOST not in ("127.0.0.1", "localhost") and not API_KEY:
         raise SystemExit("refusing to listen on a non-local address without TRIAGO_API_KEY")
-    scorer, store = Scorer(), ExampleStore.from_data()
+    scorer, store = Scorer(), ExampleStore.refresh(None)
     policy = Policy.for_scorer(scorer)
     print(f"triago listening on http://{HOST}:{PORT}  (UI at /, POST /dispatch, GET /health)", flush=True)
     HTTPServer((HOST, PORT), make_handler(scorer, policy, store)).serve_forever()

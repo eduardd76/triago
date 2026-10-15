@@ -28,3 +28,16 @@ def test_allowed_filters_groups_and_k_zero_is_empty():
 def test_later_duplicate_wins():
     store = ExampleStore([("same text", "network"), ("Same  text", "application")])
     assert store.rows == [("Same  text", "application")]
+
+
+def test_store_reloads_only_when_data_changes(tmp_path, monkeypatch):
+    import json, os
+    from triago import examples
+    monkeypatch.setattr(examples, "DATA_DIR", tmp_path)
+    (tmp_path / "tickets.jsonl").write_text(json.dumps({"t": "VPN drops", "g": "network"}) + "\n")
+    s1 = examples.ExampleStore.refresh(None)
+    assert examples.ExampleStore.refresh(s1) is s1  # unchanged -> same object, no rebuild
+    fb = tmp_path / "feedback.jsonl"
+    fb.write_text(json.dumps({"text": "J: drive gone", "group": "server_infra"}) + "\n")
+    s2 = examples.ExampleStore.refresh(s1)
+    assert s2 is not s1 and ("J: drive gone", "server_infra") in s2.rows

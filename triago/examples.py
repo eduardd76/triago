@@ -58,6 +58,24 @@ class ExampleStore:
         scored.sort(key=lambda s: -s[0])
         return [(t[:MAX_CHARS], g) for _, t, g in scored[:k]]
 
+    @staticmethod
+    def data_version() -> tuple:
+        """Changes whenever a data file is added, removed or rewritten (e.g. a feedback export)."""
+        files = [DATA_DIR / "tickets.jsonl", *sorted((DATA_DIR / "gen").glob("*.jsonl")), DATA_DIR / "feedback.jsonl"]
+        return tuple((f.name, f.stat().st_mtime_ns, f.stat().st_size) for f in files if f.exists())
+
+    @classmethod
+    def refresh(cls, store: "ExampleStore | None") -> "ExampleStore":
+        """Long-running services call this per request: reload only if the data changed."""
+        version = cls.data_version()
+        if store is not None and getattr(store, "version", None) == version:
+            return store
+        fresh = cls.from_data()
+        fresh.version = version
+        if store is not None:
+            print(f"example store reloaded: {len(fresh.rows)} labeled tickets", flush=True)
+        return fresh
+
     @classmethod
     def from_data(cls) -> "ExampleStore":
         """Production store: all labeled tickets + exported GLPI feedback (human corrections last)."""

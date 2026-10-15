@@ -87,7 +87,7 @@ def main() -> None:
             sys.exit("feedback export is GLPI-only; for other systems write data/feedback.jsonl yourself "
                      '(one {"text": ..., "group": ...} per line)')
         return export_feedback(conn)
-    scorer, store = Scorer(), ExampleStore.from_data()
+    scorer, store = Scorer(), ExampleStore.refresh(None)
     policy = Policy.for_scorer(scorer)
     print(f"example store: {len(store.rows)} labeled tickets (incl. feedback)", flush=True)
     if cmd == "once":
@@ -96,6 +96,7 @@ def main() -> None:
     print("dispatcher polling every 10s — Ctrl+C to stop", flush=True)
     while True:
         try:
+            store = ExampleStore.refresh(store)  # a feedback export takes effect on the next pass
             process_queue(conn, scorer, policy, store)
         except Exception as e:  # keep the loop alive; sessions expire
             print(f"error: {e}; reconnecting", flush=True)
