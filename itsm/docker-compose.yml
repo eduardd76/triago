@@ -1,7 +1,7 @@
 # Demo ITSM: GLPI (official image) + MySQL. UI at http://localhost:8080 (glpi/glpi)
 services:
   glpi:
-    image: glpi/glpi:latest
+    image: glpi/glpi:12.0   # tested with 12.0.0; the plugin needs GLPI >= 10
     restart: unless-stopped
     environment:
       GLPI_DB_HOST: db
