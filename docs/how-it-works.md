@@ -141,7 +141,7 @@ GLPI (the export rewrites the file each night from GLPI).
 
 When you have hundreds of corrections, `python -m triago.finetune` can build them into the model itself:
 a small *LoRA adapter* (30 MB) trained locally in about 40 minutes. On real tickets this went from 79.9% to
-88.0%. See the [customization guide](customize.md#fine-tuning).
+88.0%. See the [customization guide](customize.md#5-optional-fine-tuning).
 
 ## Where it runs
 
