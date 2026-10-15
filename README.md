@@ -17,6 +17,10 @@ ticketing system through a simple HTTP call.
 
 This is a *local Jev*: Jev-style fixed-answer scoring, rebuilt to run on your own hardware.
 
+triago is the open-source ticket-triage agent from [vExpertAI](https://vexpertai.com)'s AutoNOC team of NOC agents
+(detect & triage → diagnose → plan → validate → execute), built on the same principles: on-prem, bounded answers,
+and a human in the loop until trust is earned.
+
 ## Quick start
 
 You need Python 3.11+ and, for the GLPI demo, Docker. First run downloads the model (~2.5 GB on a Mac).
