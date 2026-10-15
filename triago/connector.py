@@ -42,3 +42,15 @@ def load(spec: str) -> Connector:
     if not name:
         raise ValueError(f"connector must look like 'package.module:ClassName', got {spec!r}")
     return getattr(importlib.import_module(module), name)()
+
+
+def note_lines(d: Dispatch, mark: str = "[TRIAGO]") -> list[str]:
+    """The explanation written back to the ticket (a private note), as plain-text lines.
+    The first line is machine-readable: feedback export parses `group=` from it."""
+    lines = [f"{mark} group={d.group} priority=P{d.priority} mode={'AUTO' if d.auto else 'TRIAGE'}",
+             f"why: {d.reason}"]
+    for name, dec in d.decisions.items():
+        probs = " ".join(f"{k}={v:.2f}" for k, v in sorted(dec.probabilities.items(), key=lambda kv: -kv[1]))
+        lines.append(f"{name}: {probs}")
+    lines.append(f"scored in {d.latency_ms:.0f} ms (no tokens generated)")
+    return lines

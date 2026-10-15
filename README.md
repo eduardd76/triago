@@ -146,6 +146,21 @@ python -m triago.dispatcher run --connector mycompany.zammad:Zammad
 
 (The Zammad snippet is a sketch of the shape, not a tested client — check your system's API docs.)
 
+**GLPI plugin: tickets open already routed.** The dispatcher polls, so a ticket page opened right after
+creation still shows it unrouted until you reload, and saving that stale page can undo the routing. The
+plugin in `integrations/glpi/triago/` calls triago while GLPI saves the ticket, so team, priority and the
+private note are there before anyone sees it (~1 s added to ticket creation). Tested on GLPI 12.0.
+
+```bash
+cd itsm && docker compose up -d                     # mounts the plugin into the GLPI container
+docker exec -u www-data itsm-glpi-1 php bin/console plugin:install triago -u glpi
+docker exec -u www-data itsm-glpi-1 php bin/console plugin:activate triago
+python -m triago.serve                              # the plugin calls it at host.docker.internal:8642
+```
+
+Keep `python -m triago.dispatcher run` running as the safety net: if triago is down or slow (4 s timeout),
+the ticket is saved unrouted and the dispatcher routes it on its next pass.
+
 **Make it route like your team**, in this order:
 1. Map your teams onto the 9 groups, or edit `GROUPS` in `triago/pipeline.py` to your own teams
    (one short keyword-style description each; at most 26, since the answer labels are the letters A–Z).
@@ -202,6 +217,7 @@ queues (+7 points) because they carry team conventions.
 - `triago/connector.py` — the two-method interface any ticketing system implements
 - `triago/serve.py` — HTTP endpoint (`POST /dispatch`) for webhook-style integration, and the UI at `/`
 - `triago/static/index.html` — the one-page UI (no build step, no external resources)
+- `integrations/glpi/triago/` — GLPI plugin: routes tickets at creation (PHP, two hooks)
 - `triago/glpi.py` — GLPI REST client and connector (groups, Group_Ticket, ITILFollowup)
 - `triago/dispatcher.py` — poll loop + feedback export
 - `triago/bench.py` — benchmark, temperature + security-threshold fitting, calibration tables, holdout mode

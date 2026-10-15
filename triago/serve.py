@@ -16,6 +16,7 @@ import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
+from .connector import note_lines
 from .examples import ExampleStore
 from .pipeline import GROUPS, IMPACT, URGENCY, Dispatch, Policy, dispatch, recalibrate
 
@@ -48,6 +49,7 @@ def to_json(d: Dispatch, policy: Policy | None = None) -> dict:
         "reason": d.reason,
         "probabilities": {k: {c: round(p, 4) for c, p in v.probabilities.items()} for k, v in d.decisions.items()},
         "latency_ms": round(d.latency_ms),
+        "note": note_lines(d),
     }
 
 

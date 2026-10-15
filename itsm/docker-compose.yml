@@ -11,6 +11,8 @@ services:
       GLPI_DB_PASSWORD: glpi
     volumes:
       - glpi_data:/var/glpi
+      # triago plugin: routes tickets while they are created (see integrations/glpi/triago/setup.php)
+      - ../integrations/glpi/triago:/var/www/glpi/plugins/triago:ro
     depends_on:
       - db
     ports:

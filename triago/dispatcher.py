@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 
 from . import connector as connectors
-from .connector import Connector
+from .connector import Connector, note_lines
 from .examples import ExampleStore
 from .glpi import GLPI, GROUP_NAMES, plain as _plain
 from .pipeline import Policy, dispatch
@@ -27,13 +27,7 @@ FEEDBACK_FILE = Path(__file__).resolve().parent.parent / "data" / "feedback.json
 
 
 def _note(d) -> str:
-    lines = [f"{MARK} group={d.group} priority=P{d.priority} mode={'AUTO' if d.auto else 'TRIAGE'}",
-             f"why: {d.reason}"]
-    for name, dec in d.decisions.items():
-        probs = " ".join(f"{k}={v:.2f}" for k, v in sorted(dec.probabilities.items(), key=lambda kv: -kv[1]))
-        lines.append(f"{name}: {probs}")
-    lines.append(f"scored in {d.latency_ms:.0f} ms (no tokens generated)")
-    return "<br>".join(html.escape(l) for l in lines)
+    return "<br>".join(html.escape(l) for l in note_lines(d, MARK))
 
 
 def process_queue(conn: Connector, scorer: Scorer, policy: Policy, store: ExampleStore | None = None) -> int:
