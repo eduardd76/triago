@@ -31,6 +31,9 @@ LEVEL = {"high": 4, "medium": 3, "low": 2}
 # our P1..P5 -> GLPI priority (6 = major, 5 = very high ... 1 = very low)
 GLPI_PRIORITY = {1: 6, 2: 5, 3: 4, 4: 3, 5: 2}
 STATUS_NEW = 1
+# A ticket created by a technician is auto-assigned to them and starts as 2 = "Processing (assigned)",
+# still without a group: both count as waiting for routing. (3 planned, 4 pending, 5 solved, 6 closed)
+STATUS_UNROUTED = (1, 2)
 GROUP_TYPE_ASSIGN = 2
 
 
@@ -74,7 +77,7 @@ class GLPI:
 
     def new_tickets(self) -> list[dict]:
         rows = self._req("GET", "Ticket", params={"range": "0-999", "order": "ASC"}) or []
-        return [t for t in rows if t["status"] == STATUS_NEW and not t.get("is_deleted")]
+        return [t for t in rows if t["status"] in STATUS_UNROUTED and not t.get("is_deleted")]
 
     def assigned_groups(self, ticket_id: int) -> list[int]:
         rows = self._req("GET", f"Ticket/{ticket_id}/Group_Ticket") or []
