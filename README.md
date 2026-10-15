@@ -75,6 +75,7 @@ cd itsm && docker compose up -d          # GLPI at http://localhost:8080  (glpi 
 source .venv/bin/activate
 python -m triago.dispatcher run             # poll GLPI every 10s and dispatch New tickets
 python -m triago.dispatcher feedback        # export human reassignments -> data/feedback.jsonl
+scripts/schedule_feedback_macos.sh                # ...or nightly at 02:00 via launchd (Linux: cron line inside)
 
 python -m triago.bench                      # fit calibration on CALIB half, report on TEST half
 python -m triago.bench --eval calib         # dev loop while editing descriptions
